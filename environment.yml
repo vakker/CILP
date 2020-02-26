@@ -1,0 +1,43 @@
+name: cilp
+channels:
+  - pytorch
+  # - pytorch-nightly
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - python==3.7
+  - cython
+  - conda>=4.7
+  - ipython
+  - ipdb
+  - pymysql
+  - mysqlclient
+  - sqlalchemy
+  - numpy
+  - scipy
+  - pandas
+  - pip
+  - pytorch
+  - torchvision
+  - cudatoolkit=10.1
+  - pyyaml
+  - scikit-learn
+  - tqdm
+  - matplotlib
+  - psutil
+  - hyperopt
+  - pytest
+  - pytest-cov
+  - setproctitle
+  - tabulate
+  - mlflow
+  - pip:
+      - tensorflow
+      - tensorboardX
+      # - ray[all]
+      - https://s3-us-west-2.amazonaws.com/ray-wheels/latest/ray-0.9.0.dev0-cp37-cp37m-manylinux1_x86_64.whl
+      - gputil
+      - ax-platform
+      - git+https://github.com/PytorchLightning/pytorch-lightning.git@master
+      - test-tube
