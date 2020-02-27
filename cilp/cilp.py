@@ -48,7 +48,7 @@ class MLP(pl.LightningModule):
             layers.append(act())
 
         # layers.append(nn.Softmax())
-        # print(layers)
+        logging.info(layers)
 
         self.layers = nn.Sequential(*layers)
         self.loss = nn.BCEWithLogitsLoss()
@@ -138,12 +138,12 @@ class CILP:
 
         logging.info(f"Loaded {len(examples_dict['pos'])} pos examples")
         logging.info(f"Loaded {len(examples_dict['neg'])} neg examples")
-        logging.info(
-            f"Pos %: ", 100 * len(examples_dict['pos']) /
-            (len(examples_dict['pos']) + len(examples_dict['neg'])))
-        logging.info(
-            f"Neg %: ", 100 * len(examples_dict['neg']) /
-            (len(examples_dict['pos']) + len(examples_dict['neg'])))
+        # logging.info(
+        #     f"Pos %: ", 100 * len(examples_dict['pos']) /
+        #     (len(examples_dict['pos']) + len(examples_dict['neg'])))
+        # logging.info(
+        #     f"Neg %: ", 100 * len(examples_dict['neg']) /
+        #     (len(examples_dict['pos']) + len(examples_dict['neg'])))
         bcp_examples = examples_dict['pos'] + examples_dict['neg']
         labels = np.concatenate([[1] * len(examples_dict['pos']),
                                  [0] * len(examples_dict['neg'])])
