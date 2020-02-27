@@ -42,10 +42,11 @@ def main(args):
             'hidden_sizes': 2,
             'activation': 'ReLU'
         },
-        'optim': 'Adam',
+        'optim': 'SGD',
         'optim_params': {
-            'lr': 0.01,
-            'amsgrad': False
+            'lr': 0.1,
+            'momentum': 0.1,
+            'weight_decay': 0.995
         },
         'max_epochs': args.max_epochs,
         'batch_size': 126,
