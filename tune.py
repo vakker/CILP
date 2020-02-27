@@ -70,20 +70,26 @@ def main(args):
                           metric="val_acc",
                           mode="max")
 
+    if osp.exists(osp.join(args.log_dir, 'hp.state')) and args.resume:
+        algo.restore(osp.join(args.log_dir, 'hp.state'))
+
     reporter = CLIReporter()
     reporter.add_metric_column("val_acc")
-    analysis = tune.run(train_cilp,
-                        num_samples=args.num_samples,
-                        config=config,
-                        trial_name_creator=trial_str_creator,
-                        progress_reporter=reporter,
-                        search_alg=algo,
-                        stop={"training_iteration": args.max_epochs},
-                        local_dir=args.log_dir,
-                        max_failures=3,
-                        resources_per_trial={'cpu': 4},
-                        resume=args.resume,
-                        verbose=1)
+    analysis = tune.run(
+        train_cilp,
+        num_samples=args.num_samples,
+        config=config,
+        trial_name_creator=trial_str_creator,
+        progress_reporter=reporter,
+        search_alg=algo,
+        stop={"training_iteration": args.max_epochs},
+        local_dir=args.log_dir,
+        max_failures=3,
+        resources_per_trial={'cpu': 4},
+        # resume=args.resume,
+        verbose=1)
+
+    algo.save(osp.join(args.log_dir, 'hp.state'))
 
     print("Best config: ")
     print(json.dumps(analysis.get_best_config(metric="val_acc"), indent=4))
