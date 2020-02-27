@@ -94,7 +94,7 @@ def load_json(file_name):
 
 
 def set_feats(bcp_features, bcp_example):
-    feat_idx = np.in1d(bcp_features, bcp_example)
+    feat_idx = np.in1d(bcp_features, bcp_example, assume_unique=True)
     example = np.zeros((len(bcp_features)))
     example[feat_idx] = 1
     return example
