@@ -184,7 +184,7 @@ class CILP:
         self.trainer = Trainer(
             logger=logger,
             max_epochs=self.params['max_epochs'],
-            early_stop_callback=True,
+            early_stop_callback=False,
             check_val_every_n_epoch=1,
             log_save_interval=1,
             row_log_interval=1,
