@@ -34,7 +34,6 @@ def main(args):
 
 if __name__ == '__main__':
     PARSER = argparse.ArgumentParser()
-    PARSER.add_argument('-v', '--verbose', action='store_true')
     PARSER.add_argument('--log-dir')
     PARSER.add_argument('--data-dir')
     PARSER.add_argument('--no-cache', action='store_true')
