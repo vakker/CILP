@@ -1,5 +1,9 @@
 test-data
 files
+bc.json
+*.npz
+*.dot
+*.bak
 
 #### C++
 # CTAGS
