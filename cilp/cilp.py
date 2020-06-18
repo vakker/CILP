@@ -1,28 +1,76 @@
-import logging
+import time
+from collections import defaultdict
 from os import path as osp
 
 import numpy as np
-import pytorch_lightning as pl
+import scipy
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.loggers.test_tube import TestTubeLogger
-from sklearn.model_selection import (StratifiedKFold, StratifiedShuffleSplit,
-                                     train_test_split)
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.model_selection import StratifiedShuffleSplit
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from .bcp import run_bcp
-from .utils import acc_score, get_features, load_json
+from .trepan import Trepan
+from .utils import get_features, load_json, save_params, to_numpy
 
 
-class MLP(pl.LightningModule):
-    def __init__(self, params, X_train, y_train, X_test, y_test):
+def tng_step(data_loader, model, criterion, optimizer):
+    model.train()
+    tng_loss = []
+    for X, y in data_loader:
+        optimizer.zero_grad()
+
+        if model.is_cuda():
+            X = X.cuda()
+            y = y.cuda()
+        y_logit = model(X)
+        loss = criterion(y_logit, y)
+        loss.backward()
+        optimizer.step()
+
+        tng_loss.append(loss.item())
+
+    return {'tng_loss': np.mean(tng_loss)}
+
+
+@torch.no_grad()
+def val_step(data_loader, model, criterion):
+    model.eval()
+    val_loss = []
+    y_pred = []
+    y_true = []
+    for X, y in data_loader:
+        if model.is_cuda():
+            X = X.cuda()
+            y = y.cuda()
+        y_logit = model(X)
+        loss = criterion(y_logit, y)
+        val_loss.append(loss.item())
+
+        y_pred.append((to_numpy(y_logit) >= 0).astype(int))
+        y_true.append(to_numpy(y).astype(int))
+
+    y_pred = np.concatenate(y_pred)
+    y_true = np.concatenate(y_true)
+    acc = accuracy_score(y_true, y_pred)
+    precision, recall, fscore, support = precision_recall_fscore_support(y_true, y_pred)
+    recall_mean = scipy.stats.mstats.gmean(recall)
+    metrics = {f'val_recall_{i}': v for i, v in enumerate(recall)}
+    metrics.update({
+        'val_loss': np.mean(val_loss),
+        'val_acc': acc,
+        'val_recall_gmean': recall_mean
+    })
+    return metrics
+
+
+class MLP(nn.Module):
+    def __init__(self, params):
         super().__init__()
 
         self.params = params
-        # self.hparams = flatten_dict(params)
-        # self.hparams = SimpleNamespace(**flatten_dict(params))
         hidden_sizes = params['mlp_params']['hidden_sizes']
         input_size = params['mlp_params']['input_size']
         activation = params['mlp_params']['activation']
@@ -48,87 +96,51 @@ class MLP(pl.LightningModule):
             layers.append(act())
 
         # layers.append(nn.Softmax())
-        logging.info(layers)
+        # print(layers)
 
         self.layers = nn.Sequential(*layers)
-        self.loss = nn.BCEWithLogitsLoss()
-
-        self.X_train = X_train
-        self.y_train = y_train
-        self.X_test = X_test
-        self.y_test = y_test
-
-        self.best_val = {'val_loss': np.inf, 'val_acc': 0}
 
     def forward(self, x):
         y = self.layers(x)
         return y
 
-    def training_step(self, batch, batch_idx):
-        x, y = batch
+    @torch.no_grad()
+    def predict(self, x):
+        x = torch.FloatTensor(x)
         y_logit = self.forward(x)
-        loss = self.loss(y_logit, y)
+        return (to_numpy(y_logit) >= 0).astype(int)
 
-        log = {'train_loss': loss}
-        return {'loss': loss, 'log': log}
-
-    def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_logit = self.forward(x)
-
-        return {'y_logit': y_logit, 'y': y}
-
-    def validation_end(self, outputs):
-        y_logit = torch.cat([x['y_logit'] for x in outputs])
-        y = torch.cat([x['y'] for x in outputs])
-
-        acc = acc_score(y_logit, y, with_logits=True)
-        loss = self.loss(y_logit, y)
-
-        log = {'val_loss': loss, 'val_acc': acc}
-        self.best_val['val_loss'] = min(self.best_val['val_loss'], loss)
-        self.best_val['val_acc'] = max(self.best_val['val_acc'], acc)
-        return {'val_loss': loss, 'val_acc': acc, 'log': log}
-
-    def configure_optimizers(self):
-        optim = getattr(torch.optim, self.params['optim'])
-        return optim(self.parameters(), **self.params['optim_params'])
-
-    def train_dataloader(self):
-        return DataLoader(TensorDataset(torch.tensor(self.X_train),
-                                        torch.tensor(self.y_train)),
-                          shuffle=True,
-                          batch_size=self.params['batch_size'])
-
-    def val_dataloader(self):
-        return DataLoader(TensorDataset(torch.tensor(self.X_test),
-                                        torch.tensor(self.y_test)),
-                          shuffle=False,
-                          batch_size=self.params['batch_size'])
+    def is_cuda(self):
+        return next(self.parameters()).is_cuda
 
 
 class CILP:
     def __init__(self,
                  data_dir,
+                 log_dir,
                  params,
+                 n_splits,
+                 max_epochs,
+                 dedup=False,
                  cached=True,
                  use_gpu=True,
                  no_logger=False,
                  progress_bar=False):
         self.cached = cached
         self.data_dir = data_dir
+        self.log_dir = log_dir
         self.params = params
+        self.n_splits = n_splits
+        self.max_epochs = max_epochs
+        self.dedup = dedup
         # self.device = 'cuda:0' if use_gpu else 'cpu'
         self.use_gpu = use_gpu
-        self.no_logger = no_logger
         self.progress_bar = progress_bar
 
         self.X = None
         self.y = None
 
         self.network = None
-        LOGGER = logging.getLogger()
-        LOGGER.setLevel(logging.WARNING)
 
     def bcp(self):
         run_bcp(self.data_dir, cached=self.cached, print_output=False)
@@ -136,21 +148,15 @@ class CILP:
     def featurise(self):
         examples_dict = load_json(osp.join(self.data_dir, 'bc.json'))
 
-        logging.info(f"Loaded {len(examples_dict['pos'])} pos examples")
-        logging.info(f"Loaded {len(examples_dict['neg'])} neg examples")
-        # logging.info(
-        #     f"Pos %: ", 100 * len(examples_dict['pos']) /
-        #     (len(examples_dict['pos']) + len(examples_dict['neg'])))
-        # logging.info(
-        #     f"Neg %: ", 100 * len(examples_dict['neg']) /
-        #     (len(examples_dict['pos']) + len(examples_dict['neg'])))
+        print(f"Loaded {len(examples_dict['pos'])} pos examples")
+        print(f"Loaded {len(examples_dict['neg'])} neg examples")
+
         bcp_examples = examples_dict['pos'] + examples_dict['neg']
-        labels = np.concatenate([[1] * len(examples_dict['pos']),
-                                 [0] * len(examples_dict['neg'])])
+        labels = np.concatenate([[1] * len(examples_dict['pos']), [0] * len(examples_dict['neg'])])
 
         feats_file = osp.join(self.data_dir, 'feats.npz')
         if osp.exists(feats_file) and self.cached:
-            logging.info('Loading from cache')
+            print('Loading from cache')
             npzfile = np.load(feats_file)
             examples = npzfile['examples']
             bcp_features = npzfile['bcp_features']
@@ -159,89 +165,96 @@ class CILP:
             np.savez(feats_file, examples=examples, bcp_features=bcp_features)
 
         self.bcp_features = bcp_features
-        self.X = examples.astype(np.float32)
-        # self.y = np.squeeze(labels)
-        self.y = np.expand_dims(labels, 1).astype(np.float32)
+        X = examples.astype(np.float32)
+        y = np.expand_dims(labels, 1).astype(np.float32)
 
-        logging.info(f'Num examples: {self.X.shape[0]}')
-        logging.info(f'Num features: {self.X.shape[1]}')
+        print(f'Num examples: {X.shape[0]}')
+        print(f'Num features: {X.shape[1]}')
+
+        data = np.concatenate([y, X], axis=1)
+        u_data = np.unique(data, axis=0)
+        print(f'Unique: {u_data.shape[0]}')
+
+        if self.dedup:
+            y = u_data[:, 0:1]
+            X = u_data[:, 1:]
+
+            print(f'Num unique examples : {X.shape[0]}')
+
+        self.X = X
+        self.y = y
 
         self.params['mlp_params'].update({'input_size': self.X.shape[1]})
 
-    def initialise(self):
+    def init_data(self):
         self.bcp()
         self.featurise()
 
-        if not self.no_logger:
-            logger = TestTubeLogger("tt_logs", name="my_exp_name")
-        else:
-            logger = False
-        # early_stop_callback = EarlyStopping(monitor='val_loss',
-        #                                     min_delta=0.00,
-        #                                     patience=3,
-        #                                     verbose=False,
-        #                                     mode='min')
-        self.trainer = Trainer(
-            logger=logger,
-            max_epochs=self.params['max_epochs'],
-            early_stop_callback=False,
-            check_val_every_n_epoch=1,
-            log_save_interval=1,
-            row_log_interval=1,
-            show_progress_bar=self.progress_bar,
-            checkpoint_callback=None,
-            gpus=1 if self.use_gpu else 0,
-        )
+    def train(self, train_idx, test_idx, with_trepan=False):
+        X_train = self.X[train_idx]
+        y_train = self.y[train_idx]
+        X_test = self.X[test_idx]
+        y_test = self.y[test_idx]
 
-    def train(self):
-        X_train, X_test, y_train, y_test = train_test_split(self.X,
-                                                            self.y,
-                                                            test_size=0.2,
-                                                            random_state=0)
-        self.network = MLP(self.params,
-                           X_train=X_train,
-                           y_train=y_train,
-                           X_test=X_test,
-                           y_test=y_test)
-        self.trainer.fit(self.network)
-        # y_proba = torch.sigmoid(self.network.infer(self.X))
-        # print(y_proba)
-        # for tqdm
+        tng_dl = DataLoader(TensorDataset(torch.tensor(X_train), torch.tensor(y_train)),
+                            shuffle=True,
+                            batch_size=self.params['batch_size'])
 
-    # def score(self, X, y):
-    #     y_proba = torch.sigmoid(self.network.infer(self.X))
-    #     return accuracy_score(y, self.predict(X))
+        val_dl = DataLoader(TensorDataset(torch.tensor(X_test), torch.tensor(y_test)),
+                            shuffle=False,
+                            batch_size=self.params['batch_size'])
+
+        network = MLP(self.params)
+        if self.use_gpu:
+            network.cuda()
+
+        optim = getattr(torch.optim, self.params['optim'])
+        optimizer = optim(network.parameters(), **self.params['optim_params'])
+        criterion = nn.BCEWithLogitsLoss()
+
+        metrics = defaultdict(list)
+        for i in trange(self.max_epochs):
+            epoch_metrics = {}
+            epoch_metrics.update(tng_step(tng_dl, network, criterion, optimizer))
+            epoch_metrics.update(val_step(val_dl, network, criterion))
+            for k, v in epoch_metrics.items():
+                metrics[k].append(v)
+
+        if with_trepan:
+            start = time.time()
+            mlp_trepan = Trepan(network, maxsize=20)
+            mlp_trepan.fit(X_train, featnames=self.bcp_features)
+            print('TREPAN took s', time.time() - start)
+
+            print('MLP Test acc: ', metrics['val_acc'][-1])
+            print('Trepan Train accuracy: ', mlp_trepan.accuracy(X_train, y_train))
+            print('Trepan Test accuracy: ', mlp_trepan.accuracy(X_test, y_test))
+            print('Trepan Train fidelity:', mlp_trepan.fidelity(X_train))
+            print('Trepan Test fidelity: ', mlp_trepan.fidelity(X_test))
+
+            dataset_name = osp.basename(self.params['data_dir'])
+            mlp_trepan.draw_tree(f'{dataset_name}.dot')
+
+        return metrics
 
     def run_cv(self):
-        n_splits = 5
-        # cv_split = StratifiedShuffleSplit(n_splits=n_splits,
-        #                                   test_size=0.2,
-        #                                   random_state=0)
-        cv_split = StratifiedKFold(n_splits=n_splits,
-                                   random_state=0,
-                                   shuffle=True)
+        cv_split = StratifiedShuffleSplit(n_splits=self.n_splits, test_size=0.2, random_state=0)
+        # cv_split = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle=True)
 
-        metrics = {'val_acc': [], 'val_loss': []}
-        for train_index, test_index in tqdm(cv_split.split(self.X, self.y),
-                                            total=n_splits,
-                                            disable=True):
-            self.network = MLP(self.params,
-                               X_train=self.X[train_index],
-                               y_train=self.y[train_index],
-                               X_test=self.X[test_index],
-                               y_test=self.y[test_index])
-            self.trainer.fit(self.network)
+        split_metrics = defaultdict(list)
+        for split_idx, (tng_idx, val_idx) in enumerate(
+                tqdm(cv_split.split(self.X, self.y), total=self.n_splits, disable=False)):
+            metrics_ = self.train(tng_idx, val_idx)
+            for k, v in metrics_.items():
+                split_metrics[k].append(v)
 
-            best_val = self.network.best_val
-            for metric in metrics:
-                metrics[metric].append(best_val[metric])
+        for k in split_metrics:
+            split_metrics[k] = np.stack(split_metrics[k])
 
-        value = 100 * np.array(metrics[metric])
-        return value.mean()
+        params_id = save_params(self.log_dir, self.params)
+        np.savez(osp.join(self.log_dir, params_id), **split_metrics)
 
-        # for metric in ['val_acc']:
-        #     value = 100 * np.array(metrics[metric])
-        #     print('#########')
-        #     print(metric)
-        #     print(value)
-        #     print(f"{metric}: {value.mean():.1f} (+/- {value.std() * 2:.1f})")
+    def run_trepan(self):
+        cv_split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+        (tng_idx, val_idx) = next(cv_split.split(self.X, self.y))
+        _ = self.train(tng_idx, val_idx, with_trepan=True)
