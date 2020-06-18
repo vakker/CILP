@@ -1,7 +1,9 @@
+# Description
+
 This repository provides an implementation of the CILP++ system from [1]. It
 contains a copy of Aleph (obtained from the [The Aleph
 Manual](https://www.cs.ox.ac.uk/activities/programinduction/Aleph/aleph.html)),
-that is used for the bottom clause propositionalization in the pipeline.
+that is used for the bottom clause propositionalization in the training pipeline.
 
 It also includes an implementation of TREPAN [2] originally developed by ? (TBC) for
 rule extraction form the trained neural network.
@@ -18,6 +20,7 @@ Requirements:
 1. A Linux system
 2. [Anaconda](https://docs.anaconda.com/anaconda/install/) (or
    [Miniconda](https://docs.conda.io/en/latest/miniconda.html))
+3. [SWI Prolog](https://www.swi-prolog.org/)
 
 To get the code and setup the environment, run:
 
@@ -41,7 +44,7 @@ The following arguments are available:
 --data-dir <data-dir> # e.g. datasets/muta/muta188
 --max-epochs <max-epochs>
 --n-splits <n-splits>
---no-cache            # get data from cache instead of running BCP
+--no-cache            # don't get data from cache instead run BCP again
 --use-gpu             # use GPU for MLP
 --trepan              # run a single train/val split and then TREPAN instead of cross-val
 --dedup               # keep only unique data samples
@@ -49,13 +52,13 @@ The following arguments are available:
 
 To plot the training curves:
 
-``` sh
+```sh
 python plot.py ...
 ```
 
 With arguments:
 
-``` sh
+```sh
 --log-file <log-file>     # e.g. logs/7992926c.npz (generated during training)
 --param-file <param-file> # e.g. logs/params.json (also generated during training)
 --max-epochs <max-epochs> # limit the number of epochs for plotting
