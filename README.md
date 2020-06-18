@@ -6,7 +6,7 @@ Manual](https://www.cs.ox.ac.uk/activities/programinduction/Aleph/aleph.html)),
 that is used for the bottom clause propositionalization in the training pipeline.
 
 It also includes an implementation of TREPAN [2] originally developed by ? (TBC) for
-rule extraction form the trained neural network.
+rule extraction from the trained neural network.
 
 The included datasets are:
 
@@ -17,10 +17,11 @@ The included datasets are:
 
 Requirements:
 
-1. A Linux system
+1. Ubuntu, Debian or similar
 2. [Anaconda](https://docs.anaconda.com/anaconda/install/) (or
    [Miniconda](https://docs.conda.io/en/latest/miniconda.html))
 3. [SWI Prolog](https://www.swi-prolog.org/)
+4. The required GPU drivers (optional)
 
 To get the code and setup the environment, run:
 
