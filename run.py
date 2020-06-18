@@ -1,5 +1,4 @@
 import argparse
-import logging
 
 from cilp import CILP
 
@@ -15,17 +14,22 @@ def main(args):
             'lr': 0.01,
             'amsgrad': False
         },
-        'max_epochs': args.max_epochs,
-        'batch_size': 126
+        'batch_size': 32,
+        'data_dir': args.data_dir
     }
 
     model = CILP(args.data_dir,
+                 args.log_dir,
                  params,
+                 n_splits=args.n_splits,
+                 max_epochs=args.max_epochs,
                  cached=not args.no_cache,
                  use_gpu=args.use_gpu)
-    model.initialise()
-    # model.train()
-    model.run_cv()
+    model.init_data()
+    if args.trepan:
+        model.run_trepan()
+    else:
+        model.run_cv()
 
 
 if __name__ == '__main__':
@@ -35,10 +39,10 @@ if __name__ == '__main__':
     PARSER.add_argument('--data-dir')
     PARSER.add_argument('--no-cache', action='store_true')
     PARSER.add_argument('--use-gpu', action='store_true')
+    PARSER.add_argument('--trepan', action='store_true')
+    PARSER.add_argument('--dedup', action='store_true')
     PARSER.add_argument('--max-epochs', type=int, default=10)
+    PARSER.add_argument('--n-splits', type=int, default=5)
 
     ARGS = PARSER.parse_args()
-
-    LOGGER = logging.getLogger()
-    LOGGER.setLevel(logging.WARNING)
     main(ARGS)
