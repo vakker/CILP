@@ -1,7 +1,7 @@
 import collections
+import hashlib
 import itertools
 import json
-import logging
 import re
 import subprocess
 import time
@@ -12,6 +12,26 @@ from os import path as osp
 import numpy as np
 import pandas as pd
 import torch
+
+
+def save_params(log_dir, params):
+    params_id = get_dict_hash(params)
+    params_file = osp.join(log_dir, 'params.json')
+    saved = {params_id: params}
+    if osp.exists(params_file):
+        saved.update(load_json(params_file))
+    write_json(params_file, saved)
+    return params_id
+
+
+def get_dict_hash(d):
+    return get_hash(json.dumps(d, sort_keys=True, ensure_ascii=True).encode())
+
+
+def get_hash(string):
+    if not isinstance(string, bytes):
+        string = string.encode()
+    return hashlib.sha256(string).hexdigest()[:8]
 
 
 def run_aleph(script_file):
@@ -85,6 +105,11 @@ def load_json(file_name):
         return json.load(f)
 
 
+def write_json(file_name, d):
+    with open(file_name, 'w') as f:
+        json.dump(d, f)
+
+
 # def set_feats(bcp_features, bcp_examples):
 #     examples = np.zeros((len(bcp_examples), len(bcp_features)))
 #     for i, ex in enumerate(bcp_examples):
@@ -124,7 +149,6 @@ def get_features(bcp_examples):
 
 
 def execute(cmd, return_output=False):
-    subproc_logger = logging.getLogger('subproc')
     popen = subprocess.Popen(cmd,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT,
@@ -136,11 +160,12 @@ def execute(cmd, return_output=False):
     else:
         for stdout_line in iter(popen.stdout.readline, ""):
             # print(stdout_line.rstrip())
-            subproc_logger.info(stdout_line.rstrip())
+            print(stdout_line.rstrip())
     popen.stdout.close()
     return_code = popen.wait()
     if return_code:
-        subproc_logger.warning(output)
+        print('Subproc error:')
+        print(output)
         raise subprocess.CalledProcessError(return_code, cmd)
 
     if return_output:
