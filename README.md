@@ -5,8 +5,10 @@ contains a copy of Aleph (obtained from the [The Aleph
 Manual](https://www.cs.ox.ac.uk/activities/programinduction/Aleph/aleph.html)),
 that is used for the bottom clause propositionalization in the training pipeline.
 
-It also includes an implementation of TREPAN [2] originally developed by ? (TBC) for
-rule extraction from the trained neural network.
+It also includes an implementation of TREPAN [2] originally developed by [Kester
+Jarvis](kester.jarvis@city.ac.uk) and [Artur d'Avila
+Garcez](a.garcez@city.ac.uk) for rule extraction from the trained neural
+network.
 
 The included datasets are:
 
