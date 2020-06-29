@@ -67,6 +67,10 @@ With arguments:
 --max-epochs <max-epochs> # limit the number of epochs for plotting
 ```
 
+**Notes**: The IMDb dataset creates a large number of features which makes
+TREPAN practically unusable. The Alzheimer's datasets finish a single TREPAN run
+within 10 min, MUTAG takes approx 1.9 hours, and IMDb was killed after 3 days.
+
 # References
 
 [1] França, Manoel VM, Gerson Zaverucha, and Artur S. d’Avila Garcez. "Fast
