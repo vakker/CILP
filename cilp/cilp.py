@@ -107,6 +107,8 @@ class MLP(nn.Module):
     @torch.no_grad()
     def predict(self, x):
         x = torch.FloatTensor(x)
+        if self.is_cuda():
+            x = x.cuda()
         y_logit = self.forward(x)
         return (to_numpy(y_logit) >= 0).astype(int)
 
