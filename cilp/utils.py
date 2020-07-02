@@ -36,7 +36,7 @@ def get_hash(string):
 
 def run_aleph(script_file):
     aleph_file = get_aleph()
-    cmd = f'prolog -f {aleph_file} -l {script_file}'
+    cmd = f'swipl -f {aleph_file} -l {script_file}'
     return execute(cmd, return_output=True)
 
 
