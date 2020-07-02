@@ -960,12 +960,14 @@ class Trepan(object):
             for subtest in test[1]:
                 # Define test symbol
                 if subtest[2]:
-                    symbol = ">="
+                    substr = "%s\\n " % (self.featnames[subtest[0]])
+                    # symbol = ">="
                 else:
-                    symbol = "<"
+                    substr = "¬%s\\n " % (self.featnames[subtest[0]])
+                    # symbol = "<"
                 # Create string and add it to existing string
-                substr = "%s %s %f\\n " % (self.featnames[subtest[0]], symbol,
-                                           subtest[1])
+                # substr = "%s %s %f\\n " % (self.featnames[subtest[0]], symbol,
+                #                            subtest[1])
                 output = output + substr
             # Close string and return it
             output = output + "\", shape=box]"
