@@ -34,7 +34,6 @@ class Trepan(object):
         oracle_predict(samples): Predict a class using the oracle for the samples
                                  provided.
     """
-
     def __init__(self,
                  oracle,
                  maxsize=10,
@@ -54,12 +53,7 @@ class Trepan(object):
         self.building = False
         self.oracle = oracle
 
-    def fit(self,
-            traindata,
-            trainlabels=[],
-            testdata=[],
-            testlabels=[],
-            featnames=[]):
+    def fit(self, traindata, trainlabels=[], testdata=[], testlabels=[], featnames=[]):
         """
         Takes a set of training data (as a numpy array), saves it as part of
         the class, and calls the build_tree method to make a TREPAN tree.
@@ -74,8 +68,7 @@ class Trepan(object):
         self.numfeats = traindata.shape[1]
         # Check inputs match up
         if self.logging and len(self.trainlabels) != self.numsamples:
-            raise Exception(
-                'Number of training examples and labels do not match')
+            raise Exception('Number of training examples and labels do not match')
         if self.logging and self.testdata.shape[1] != self.numfeats:
             raise Exception('Test data has incorrect number of features')
         if self.logging and len(self.testlabels) != self.testdata.shape[0]:
@@ -85,8 +78,7 @@ class Trepan(object):
         else:
             self.featnames = [str(i) for i in range(self.numfeats)]
         if len(self.featnames) != self.numfeats:
-            raise Exception(
-                'Number of feature names does not match number of features')
+            raise Exception('Number of feature names does not match number of features')
         # Make sure tree is empty before we build
         self.tree = {}
         self.__build_tree()
@@ -123,12 +115,10 @@ class Trepan(object):
             wasexpanded = self.__expand_node(bestnode)
             # Log if necessary
             if self.logging and wasexpanded:
-                self.trainaccs.append(
-                    self.accuracy(self.traindata, self.trainlabels))
+                self.trainaccs.append(self.accuracy(self.traindata, self.trainlabels))
                 self.trainfids.append(self.fidelity(self.traindata))
                 if len(self.testdata) > 0:
-                    self.testaccs.append(
-                        self.accuracy(self.testdata, self.testlabels))
+                    self.testaccs.append(self.accuracy(self.testdata, self.testlabels))
                     self.testfids.append(self.fidelity(self.testdata))
             # Check there are still nodes to expand
             finished = self.__check_stopping()
@@ -141,8 +131,7 @@ class Trepan(object):
         are no nodes in the queue to expand, or the number of internal nodes
         in the tree is equal to the maximum size specified.
         """
-        internalnodes = sum(
-            [not self.tree[node]['isleaf'] for node in self.tree])
+        internalnodes = sum([not self.tree[node]['isleaf'] for node in self.tree])
         if len(self.fvalues) == 0 or internalnodes >= self.maxsize:
             finished = True
         else:
@@ -167,8 +156,7 @@ class Trepan(object):
         isleaf = True
         # Predict (ONLY for this initial node) using raw predictions from oracle -
         # no drawn samples
-        predictedclass = stats.mode(
-            self.oracle_predict(self.traindata[reached])).mode[0]
+        predictedclass = stats.mode(self.oracle_predict(self.traindata[reached])).mode[0]
         mntest = None
         daughter0 = None
         daughter1 = None
@@ -228,8 +216,7 @@ class Trepan(object):
             sister: The name of the node's sister node (i.e. they have the same parent)
         """
         # Create constraints from parent's constraints plus its m-of-n test
-        newtest = (self.tree[parent]['mntest'][0],
-                   self.tree[parent]['mntest'][1], passed)
+        newtest = (self.tree[parent]['mntest'][0], self.tree[parent]['mntest'][1], passed)
         constraints = self.tree[parent]['constraints'] + list([newtest])
         # Find how many samples reach the node (as boolean array)
         reached = [
@@ -254,8 +241,7 @@ class Trepan(object):
                 constrainedfeats.append(subtest[0])
         # If labels are not all the same, and we haven't used all features,
         # add this to the list of nodes to expand
-        if len(np.unique(labels)) > 1 and len(
-                constrainedfeats) < self.numfeats:
+        if len(np.unique(labels)) > 1 and len(constrainedfeats) < self.numfeats:
             self.fvalues[nodename] = reach * (1 - fidelity)
         isleaf = True
         mntest = None
@@ -312,8 +298,8 @@ class Trepan(object):
         counter = 0
         # Loop over tests until one is failed or we have tested them all
         while allpassed and counter < len(constraints):
-            passed = self.__passes_mn_test(
-                example, (constraints[counter][0], constraints[counter][1]))
+            passed = self.__passes_mn_test(example,
+                                           (constraints[counter][0], constraints[counter][1]))
             if passed != constraints[counter][2]:
                 allpassed = False
             counter += 1
@@ -340,10 +326,10 @@ class Trepan(object):
             daughter1 = nodename + '1'
             if self.verbose:
                 print("Creating new nodes...")
-            self.tree[daughter0] = self.__create_node(
-                daughter0, nodename, failclass, daughter1, False)
-            self.tree[daughter1] = self.__create_node(
-                daughter1, nodename, passclass, daughter0, True)
+            self.tree[daughter0] = self.__create_node(daughter0, nodename, failclass, daughter1,
+                                                      False)
+            self.tree[daughter1] = self.__create_node(daughter1, nodename, passclass, daughter0,
+                                                      True)
             # Adjust the current node's values to register expansion
             self.tree[nodename]['0daughter'] = daughter0
             self.tree[nodename]['1daughter'] = daughter1
@@ -402,16 +388,16 @@ class Trepan(object):
                 # Check if distribution for feature is diff from parent node
                 # using Kolgomorov-Smirnov test
                 # Including Bonferroni correction
-                if stats.ks_2samp(localsamples[:, feat], parentsamples[:, feat]
-                                  )[1] <= self.significance / self.numfeats:
+                if stats.ks_2samp(localsamples[:, feat],
+                                  parentsamples[:, feat])[1] <= self.significance / self.numfeats:
                     # Check for single values
                     uniques = np.unique(localsamples[:, feat])
                     if len(uniques) == 1:
                         singlevalsdict[feat] = uniques[0]
                         # If not single-valued, create KDE
                     else:
-                        kernels[feat] = stats.gaussian_kde(
-                            localsamples[:, feat], bw_method=bandwidth)
+                        kernels[feat] = stats.gaussian_kde(localsamples[:, feat],
+                                                           bw_method=bandwidth)
                 else:
                     # If distribution doesn't differ, do same as above,
                     # but for parent node instead
@@ -419,14 +405,13 @@ class Trepan(object):
                     if len(uniques) == 1:
                         singlevalsdict[feat] = uniques[0]
                     else:
-                        kernels[feat] = stats.gaussian_kde(
-                            parentsamples[:, feat], bw_method=bandwidth)
+                        kernels[feat] = stats.gaussian_kde(parentsamples[:, feat],
+                                                           bw_method=bandwidth)
                     # Record that we're still using the distribution from a node
                     # higher in the tree
                     distrnodes[feat] = distrs[feat]
             # Get the new samples, and append them to the local samples
-            newsamples = self.__draw_instances(samplesneeded, kernels,
-                                               constraints, singlevalsdict)
+            newsamples = self.__draw_instances(samplesneeded, kernels, constraints, singlevalsdict)
             allsamples = np.r_['0,2', localsamples, newsamples]
         # If we had enough, just return what we started with
         else:
@@ -467,20 +452,17 @@ class Trepan(object):
                         # If the feature is a single value and guaranteed to be passed
                         # in the test, reduce m by one to account for this
                         # (Implied don't reduce m if not passed in test)
-                        if (greater
-                                and singlevalsdict[feature] >= threshold) or (
-                                    (not greater)
-                                    and singlevalsdict[feature] < threshold):
+                        if (greater and singlevalsdict[feature] >= threshold) or (
+                            (not greater) and singlevalsdict[feature] < threshold):
                             m -= 1
                     else:
                         # Get conditional probability of this feature passing test by integrating
                         # over kernel (to + or -inf depending on directino of test)
                         if greater:
-                            conditional_prob = kernels[
-                                feature].integrate_box_1d(threshold, np.inf)
+                            conditional_prob = kernels[feature].integrate_box_1d(threshold, np.inf)
                         else:
-                            conditional_prob = kernels[
-                                feature].integrate_box_1d(-np.inf, threshold)
+                            conditional_prob = kernels[feature].integrate_box_1d(
+                                -np.inf, threshold)
                         # Add this to the list of probabilities for this test
                         probs = np.append(probs, conditional_prob)
                         # And add the feature to the accopmanying list
@@ -500,19 +482,16 @@ class Trepan(object):
                     threshold = feattest[1]
                     greater = not feattest[2]
                     if feature in singlevalsdict:
-                        if (greater
-                                and singlevalsdict[feature] >= threshold) or (
-                                    (not greater)
-                                    and singlevalsdict[feature] < threshold):
+                        if (greater and singlevalsdict[feature] >= threshold) or (
+                            (not greater) and singlevalsdict[feature] < threshold):
                             # m incremented instead of reduced because of reverse test
                             m += 1
                     else:
                         if greater:
-                            conditional_prob = kernels[
-                                feature].integrate_box_1d(threshold, np.inf)
+                            conditional_prob = kernels[feature].integrate_box_1d(threshold, np.inf)
                         else:
-                            conditional_prob = kernels[
-                                feature].integrate_box_1d(-np.inf, threshold)
+                            conditional_prob = kernels[feature].integrate_box_1d(
+                                -np.inf, threshold)
                         probs = np.append(probs, conditional_prob)
                         probfeats = np.append(probfeats, feature)
                         feattests[feature] = (threshold, greater)
@@ -537,15 +516,13 @@ class Trepan(object):
         Singlevalsdict is a dictionary that tells us which features take only single
         values, and so need to be treated differently (no kernel exists for them).
         """
-
         def __passes_test(resample, test):
             """
             Simple helper function that takes a value and a single test as a (threshold,
             greater than) tuple, and checks whether the value passes.
             """
             passes = False
-            if (test[1] and resample >= test[0]) or (not test[1]
-                                                     and resample < test[0]):
+            if (test[1] and resample >= test[0]) or (not test[1] and resample < test[0]):
                 passes = True
             return passes
 
@@ -556,8 +533,7 @@ class Trepan(object):
             # single-valued and so local m>0)
             if conds[0] > 0:
                 # Choose weighted set of features from m-of-n test
-                choices = np.random.choice(
-                    conds[1], p=conds[2], size=conds[0], replace=False)
+                choices = np.random.choice(conds[1], p=conds[2], size=conds[0], replace=False)
                 # Add those chosen to constraints
                 constrainedfeatures = np.r_[constrainedfeatures, choices]
         for feature in range(self.numfeats):
@@ -599,8 +575,7 @@ class Trepan(object):
             print("Finding best test...")
         for test in tests:
             for threshold in tests[test]:
-                testgain = self.__binary_info_gain(test, threshold, newsamples,
-                                                   newlabels)
+                testgain = self.__binary_info_gain(test, threshold, newsamples, newlabels)
                 if testgain > bestgain:
                     bestgain = testgain
                     besttest = (test, threshold)
@@ -609,14 +584,10 @@ class Trepan(object):
         if bestgain > 0:
             if self.verbose:
                 print("Finding m-of-n test...")
-            mofntest = self.__make_mofn_tests(besttest, tests, newsamples,
-                                              newlabels)
+            mofntest = self.__make_mofn_tests(besttest, tests, newsamples, newlabels)
             # Get the list of samples that pass, and use to find majority classes
             # for samples that pass or that fail
-            passes = [
-                self.__passes_mn_test(sample, mofntest)
-                for sample in newsamples
-            ]
+            passes = [self.__passes_mn_test(sample, mofntest) for sample in newsamples]
             fails = [not i for i in passes]
             passclass = stats.mode(newlabels[passes]).mode[0]
             failclass = stats.mode(newlabels[fails]).mode[0]
@@ -648,10 +619,8 @@ class Trepan(object):
             # Only generate breakpoints for a feature if it wasn't already used on this branch
             if feature not in alreadyused:
                 # Get the minimum and maximum values from real examples
-                featmin = min(
-                    self.traindata[self.tree[nodename]['reached']][:, feature])
-                featmax = max(
-                    self.traindata[self.tree[nodename]['reached']][:, feature])
+                featmin = min(self.traindata[self.tree[nodename]['reached']][:, feature])
+                featmax = max(self.traindata[self.tree[nodename]['reached']][:, feature])
                 # Get unique values for feature
                 values = np.unique(samples[:, feature])
                 breakpoints = []
@@ -662,8 +631,7 @@ class Trepan(object):
                     labels2 = labels[samples[:, feature] == values[value + 1]]
                     l1unique = list(np.unique(labels1))
                     l2unique = list(np.unique(labels2))
-                    if l1unique != l2unique or (l1unique == l2unique == [0, 1
-                                                                         ]):
+                    if l1unique != l2unique or (l1unique == l2unique == [0, 1]):
                         midpoint = (values[value] + values[value + 1]) / 2
                         # If the point is within the range of real values, add it
                         # to breakpoints
@@ -671,9 +639,7 @@ class Trepan(object):
                             breakpoints.append(midpoint)
                 # Trim list of breakpoints to 20 if too long
                 if len(breakpoints) > 20:
-                    idx = np.rint(
-                        np.linspace(0, len(breakpoints) - 1,
-                                    num=20)).astype(int)
+                    idx = np.rint(np.linspace(0, len(breakpoints) - 1, num=20)).astype(int)
                     breakpoints = [breakpoints[i] for i in idx]
                 # Add list of breakpoints to feature dict
                 bpdict[feature] = breakpoints
@@ -711,9 +677,8 @@ class Trepan(object):
         split2 = np.invert(split1)
         # Get entropy after split (remembering to weight by no of examples in each
         # half of split)
-        afterent = (
-            self.__entropy(labels[split1]) * (np.sum(split1) / len(labels)) +
-            self.__entropy(labels[split2]) * (np.sum(split2) / len(labels)))
+        afterent = (self.__entropy(labels[split1]) * (np.sum(split1) / len(labels)) +
+                    self.__entropy(labels[split2]) * (np.sum(split2) / len(labels)))
         gain = origent - afterent
         return gain
 
@@ -730,8 +695,7 @@ class Trepan(object):
         # passed the test.
         splittest = np.array([
             samples[:, septest[0]] >= septest[1]
-            if septest[2] else samples[:, septest[0]] < septest[1]
-            for septest in septests
+            if septest[2] else samples[:, septest[0]] < septest[1] for septest in septests
         ])
         # Now check whether the number of tests passed per sample is higher than m
         split1 = np.sum(splittest, axis=0) >= m
@@ -739,14 +703,12 @@ class Trepan(object):
         # Calculate original entropy
         origent = self.__entropy(labels)
         # Get entropy of split
-        afterent = (
-            self.__entropy(labels[split1]) * (np.sum(split1) / len(labels)) +
-            self.__entropy(labels[split2]) * (np.sum(split2) / len(labels)))
+        afterent = (self.__entropy(labels[split1]) * (np.sum(split1) / len(labels)) +
+                    self.__entropy(labels[split2]) * (np.sum(split2) / len(labels)))
         gain = origent - afterent
         return gain
 
-    def __expand_mofn_test(self, test, feature, threshold, greater,
-                           incrementm):
+    def __expand_mofn_test(self, test, feature, threshold, greater, incrementm):
         """
         Constructs and returns a new m-of-n test using the passed test and
         other parameters. These are the feature, the threshold to split on,
@@ -773,10 +735,8 @@ class Trepan(object):
         addition of features.
         """
         # Initialise beam with best test and its negation
-        initgain = self.__binary_info_gain(besttest[0], besttest[1], samples,
-                                           labels)
-        beam = [(1, [(besttest[0], besttest[1], False)]),
-                (1, [(besttest[0], besttest[1], True)])]
+        initgain = self.__binary_info_gain(besttest[0], besttest[1], samples, labels)
+        beam = [(1, [(besttest[0], besttest[1], False)]), (1, [(besttest[0], besttest[1], True)])]
         beamgains = [initgain, initgain]
         # Initialise current beam (which will be modified within the loops)
         currentbeam = list(beam)
@@ -803,19 +763,15 @@ class Trepan(object):
                                 for incrementm in [True, False]:
                                     # Add selected feature+threshold to to current test
                                     newtest = self.__expand_mofn_test(
-                                        test, feature, threshold, greater,
-                                        incrementm)
+                                        test, feature, threshold, greater, incrementm)
                                     # Get info gain and compare it
-                                    gain = self.__mofn_info_gain(
-                                        newtest, samples, labels)
+                                    gain = self.__mofn_info_gain(newtest, samples, labels)
                                     # Compare gains
                                     if (gain > min(currentgains)) \
                                        and (gain > self.improvement * currentbest):
                                         # Replace worst in beam if gain better than worst in beam
-                                        currentbeam[np.argmin(
-                                            currentgains)] = newtest
-                                        currentgains[np.argmin(
-                                            currentgains)] = gain
+                                        currentbeam[np.argmin(currentgains)] = newtest
+                                        currentgains[np.argmin(currentgains)] = gain
                                         beamchanged = True
             # Set new tests in beam and associated gains
             beam = list(currentbeam)
@@ -834,10 +790,7 @@ class Trepan(object):
         if len(np.array(examples).shape) == 1:
             predictions = [self.oracle.predict(examples.reshape(1, -1))]
         else:
-            predictions = [
-                self.oracle.predict(example.reshape(1, -1))[0]
-                for example in examples
-            ]
+            predictions = [self.oracle.predict(example.reshape(1, -1))[0] for example in examples]
         return predictions
 
     def __prune_tree(self):
@@ -900,8 +853,7 @@ class Trepan(object):
         """
         # Check we fitted the tree
         if not (self.fitted or self.building):
-            raise Exception(
-                'Tree must be fitted before applying predictive methods.')
+            raise Exception('Tree must be fitted before applying predictive methods.')
         # Check for single sample
         if len(np.array(samples).shape) == 1:
             classes = [self.__predict_sample(samples)]
@@ -916,8 +868,7 @@ class Trepan(object):
         """
         # Check we fitted the tree
         if not (self.fitted or self.building):
-            raise Exception(
-                'Tree must be fitted before applying predictive methods.')
+            raise Exception('Tree must be fitted before applying predictive methods.')
         predictions = self.predict(samples)
         matches = predictions == labels
         accuracy = sum(matches) / len(matches)
@@ -931,8 +882,7 @@ class Trepan(object):
         """
         # Check we fitted the tree
         if not (self.fitted or self.building):
-            raise Exception(
-                'Tree must be fitted before applying predictive methods.')
+            raise Exception('Tree must be fitted before applying predictive methods.')
         treepredictions = np.array(self.predict(samples))
         oraclepredictions = self.oracle_predict(samples)
         matches = oraclepredictions == treepredictions
@@ -949,7 +899,6 @@ class Trepan(object):
         require any enforcement of graph order, but does make the output files
         a bit less readable.
         """
-
         def write_test(test):
             """
             Small subfunction to write the m-of-n test as a string.
@@ -986,9 +935,7 @@ class Trepan(object):
                 # Check if it's a leaf node: if no, show m-of-n test
                 if not self.tree[node]['isleaf']:
                     # Write test
-                    out_hndl.write(
-                        "\t%s %s;\n" % (node,
-                                        write_test(self.tree[node]['mntest'])))
+                    out_hndl.write("\t%s %s;\n" % (node, write_test(self.tree[node]['mntest'])))
                     # Write links
                     out_hndl.write("\t%s -> %s [label=\"False\"];\n" %
                                    (node, self.tree[node]['0daughter']))
@@ -996,8 +943,7 @@ class Trepan(object):
                                    (node, self.tree[node]['1daughter']))
                 # Otherwise, show predicted class
                 else:
-                    out_hndl.write(
-                        "\t%s [color=blue, fontcolor=black, label=\"%f\"];\n" %
-                        (node, self.tree[node]['predictedclass']))
+                    out_hndl.write("\t%s [color=blue, fontcolor=black, label=\"%f\"];\n" %
+                                   (node, self.tree[node]['predictedclass']))
             # Close graph
             out_hndl.write("}\n")
