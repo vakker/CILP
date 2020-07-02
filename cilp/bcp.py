@@ -4,11 +4,11 @@ import tempfile
 import time
 from os import path as osp
 
-from .utils import aleph_settings, create_script, load_examples, run_aleph
+from .utils import aleph_settings, create_script, load_examples, run_aleph, pjoin
 
 
 def run_bcp(data_dir, cached=True, print_output=False):
-    bc_file = osp.join(data_dir, 'bc.json')
+    bc_file = pjoin(data_dir, 'bc.json')
     if osp.exists(bc_file) and cached:
         print('Loading from cache')
         return
@@ -17,10 +17,10 @@ def run_bcp(data_dir, cached=True, print_output=False):
     for posneg in ['pos', 'neg']:
         bottom_clauses[posneg] = []
 
-        train_pos = osp.join(data_dir, f'{posneg}.pl')
+        train_pos = pjoin(data_dir, f'{posneg}.pl')
         pos_examples = load_examples(train_pos)
-        bk_file = osp.join(data_dir, 'bk.pl')
-        mode_file = osp.join(data_dir, 'mode.pl')
+        bk_file = pjoin(data_dir, 'bk.pl')
+        mode_file = pjoin(data_dir, 'mode.pl')
 
         script_lines = aleph_settings(mode_file, bk_file, data_files={'train_pos': train_pos})
         # script_lines += [f':- set(train_pos, "{train_pos}").']

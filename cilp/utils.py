@@ -16,7 +16,7 @@ import torch
 
 def save_params(log_dir, params):
     params_id = get_dict_hash(params)
-    params_file = osp.join(log_dir, 'params.json')
+    params_file = pjoin(log_dir, 'params.json')
     saved = {params_id: params}
     if osp.exists(params_file):
         saved.update(load_json(params_file))
@@ -42,7 +42,7 @@ def run_aleph(script_file):
 
 def get_aleph():
     curr_dir = osp.dirname(osp.realpath(__file__))
-    return osp.join(curr_dir, 'aleph.pl')
+    return pjoin(curr_dir, 'aleph.pl')
 
 
 def aleph_settings(mode_file, bk_file, data_files={}):
@@ -66,7 +66,7 @@ def aleph_settings(mode_file, bk_file, data_files={}):
 
 
 def create_script(directory, script_lines):
-    file_name = osp.join(directory, 'script.pl')
+    file_name = pjoin(directory, 'script.pl')
     with open(file_name, 'w') as f:
         f.writelines([l + '\n' for l in script_lines + [':- halt.']])
     return file_name
@@ -209,3 +209,18 @@ def acc_score(outputs, targets, with_logits=False):
     total = targets.shape[0]
     acc = correct / total
     return acc
+
+
+def pjoin(root, file_name):
+    # for Windows compatibility, otherwise pjoin mixes slashes
+    if '/' in root:
+        if '\\' in root:
+            raise RuntimeError(f'Path has mixed delimiters: {root}')
+
+        if root[-1] == '/':
+            return root + file_name
+        return root + '/' + file_name
+
+    if root[-1] == '\\':
+        return root + file_name
+    return root + '\\' + file_name

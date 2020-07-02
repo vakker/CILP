@@ -13,7 +13,7 @@ from tqdm import tqdm, trange
 
 from .bcp import run_bcp
 from .trepan import Trepan
-from .utils import get_features, load_json, save_params, to_numpy
+from .utils import get_features, load_json, pjoin, save_params, to_numpy
 
 
 def tng_step(data_loader, model, criterion, optimizer):
@@ -148,7 +148,7 @@ class CILP:
         run_bcp(self.data_dir, cached=self.cached, print_output=False)
 
     def featurise(self):
-        examples_dict = load_json(osp.join(self.data_dir, 'bc.json'))
+        examples_dict = load_json(pjoin(self.data_dir, 'bc.json'))
 
         print(f"Loaded {len(examples_dict['pos'])} pos examples")
         print(f"Loaded {len(examples_dict['neg'])} neg examples")
@@ -156,7 +156,7 @@ class CILP:
         bcp_examples = examples_dict['pos'] + examples_dict['neg']
         labels = np.concatenate([[1] * len(examples_dict['pos']), [0] * len(examples_dict['neg'])])
 
-        feats_file = osp.join(self.data_dir, 'feats.npz')
+        feats_file = pjoin(self.data_dir, 'feats.npz')
         if osp.exists(feats_file) and self.cached:
             print('Loading from cache')
             npzfile = np.load(feats_file)
@@ -254,7 +254,7 @@ class CILP:
             split_metrics[k] = np.stack(split_metrics[k])
 
         params_id = save_params(self.log_dir, self.params)
-        np.savez(osp.join(self.log_dir, params_id), **split_metrics)
+        np.savez(pjoin(self.log_dir, params_id), **split_metrics)
 
     def run_trepan(self):
         cv_split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
