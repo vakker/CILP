@@ -943,7 +943,9 @@ class Trepan(object):
                                    (node, self.tree[node]['1daughter']))
                 # Otherwise, show predicted class
                 else:
-                    out_hndl.write("\t%s [color=blue, fontcolor=black, label=\"%f\"];\n" %
-                                   (node, self.tree[node]['predictedclass']))
+                    # out_hndl.write("\t%s [color=blue, fontcolor=black, label=\"%f\"];\n" %
+                    #                (node, self.tree[node]['predictedclass']))
+                    out_hndl.write("\t%s [color=blue, fontcolor=black, label=\"%r\"];\n" %
+                                   (node, self.tree[node]['predictedclass'][0] > 0.5))
             # Close graph
             out_hndl.write("}\n")
