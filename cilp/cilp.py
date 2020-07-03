@@ -5,6 +5,7 @@ from os import path as osp
 import numpy as np
 import scipy
 import torch
+from sklearn import tree
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import StratifiedShuffleSplit
 from torch import nn
@@ -192,17 +193,17 @@ class CILP:
         self.bcp()
         self.featurise()
 
-    def train(self, train_idx, test_idx, with_trepan=False):
-        X_train = self.X[train_idx]
-        y_train = self.y[train_idx]
-        X_test = self.X[test_idx]
-        y_test = self.y[test_idx]
+    def train(self, tng_idx, val_idx, with_trepan=False):
+        X_tng = self.X[tng_idx]
+        y_tng = self.y[tng_idx]
+        X_val = self.X[val_idx]
+        y_val = self.y[val_idx]
 
-        tng_dl = DataLoader(TensorDataset(torch.tensor(X_train), torch.tensor(y_train)),
+        tng_dl = DataLoader(TensorDataset(torch.tensor(X_tng), torch.tensor(y_tng)),
                             shuffle=True,
                             batch_size=self.params['batch_size'])
 
-        val_dl = DataLoader(TensorDataset(torch.tensor(X_test), torch.tensor(y_test)),
+        val_dl = DataLoader(TensorDataset(torch.tensor(X_val), torch.tensor(y_val)),
                             shuffle=False,
                             batch_size=self.params['batch_size'])
 
@@ -222,20 +223,33 @@ class CILP:
             for k, v in epoch_metrics.items():
                 metrics[k].append(v)
 
+        clf = tree.DecisionTreeClassifier().fit(X_tng, y_tng)
+
+        metrics['dec_tree_tng_acc'] = [clf.score(X_tng, y_tng)]
+        metrics['dec_tree_val_acc'] = [clf.score(X_val, y_val)]
+
         if with_trepan:
             start = time.time()
             mlp_trepan = Trepan(network, maxsize=20)
-            mlp_trepan.fit(X_train, featnames=self.bcp_features)
+            mlp_trepan.fit(X_tng, featnames=self.bcp_features)
             print('TREPAN took s', time.time() - start)
 
-            print('MLP Test acc: ', metrics['val_acc'][-1])
-            print('Trepan Train accuracy: ', mlp_trepan.accuracy(X_train, y_train))
-            print('Trepan Test accuracy: ', mlp_trepan.accuracy(X_test, y_test))
-            print('Trepan Train fidelity:', mlp_trepan.fidelity(X_train))
-            print('Trepan Test fidelity: ', mlp_trepan.fidelity(X_test))
+            print('MLP Val acc: ', metrics['val_acc'][-1])
+            print('Trepan Tng accuracy: ', mlp_trepan.accuracy(X_tng, y_tng))
+            print('Trepan Val accuracy: ', mlp_trepan.accuracy(X_val, y_val))
+            print('Trepan Tng fidelity:', mlp_trepan.fidelity(X_tng))
+            print('Trepan Val fidelity: ', mlp_trepan.fidelity(X_val))
+
+            print('Decision Tree Tng accuracy: ', clf.score(X_tng, y_tng))
+            print('Decision Tree Val accuracy: ', clf.score(X_val, y_val))
 
             dataset_name = osp.basename(self.params['data_dir'])
-            mlp_trepan.draw_tree(f'{dataset_name}.dot')
+            mlp_trepan.draw_tree(f'{dataset_name}_trepan.dot')
+            tree.export_graphviz(clf,
+                                 out_file=f'{dataset_name}_dtc.dot',
+                                 feature_names=self.bcp_features,
+                                 class_names=['True', 'False'],
+                                 impurity=False)
 
         return metrics
 

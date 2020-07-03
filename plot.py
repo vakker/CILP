@@ -25,6 +25,15 @@ def main(args):
     val_std = y_std[y_max]
     print(f'Val acc max {val_mean:.2f} (+/-{val_std:.2f})%')
 
+    y = 100 * metrics['dec_tree_val_acc']
+    y_mean = np.mean(y, axis=0)
+    y_std = np.std(y, axis=0)
+    y_max = np.argmax(y_mean)
+
+    val_mean = y_mean[y_max]
+    val_std = y_std[y_max]
+    print(f'Dec Tree Val acc max {val_mean:.2f} (+/-{val_std:.2f})%')
+
     f, ax = plt.subplots(len(to_plot), 1, sharex=True, figsize=[10, 10])
     for i, m in enumerate(to_plot):
         y = metrics[m][:, :args.max_epochs]
