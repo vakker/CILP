@@ -48,18 +48,9 @@ def get_aleph():
 def aleph_settings(mode_file, bk_file, data_files={}):
     script_lines = []
     # script_lines += [f':- set(verbosity, 0).']
-    script_lines += [f':- set(i,2).']
-    script_lines += [f':- set(nodes,20000).']
-    script_lines += [f':- set(noise,5).']
-    script_lines += [f':- set(check_useless,true).']
-    # script_lines += [f':- set(check_redundant,true).']
-    # script_lines += [f':- set(c,3).']
+    script_lines += [f':- set(depth,3).']
     for set_name, data_file in data_files.items():
         script_lines += [f':- set({set_name}, "{data_file}").']
-    # script_lines += [f':- set(train_pos, "{train_pos}").']
-    # script_lines += [f':- set(train_neg, "{train_neg}").']
-    # script_lines += [f':- set(test_pos, "{test_pos}").']
-    # script_lines += [f':- set(test_neg, "{test_neg}").']
     script_lines += [f':- read_all("{mode_file}").']
     script_lines += [f':- read_all("{bk_file}").']
     return script_lines
