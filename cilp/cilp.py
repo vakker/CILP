@@ -56,8 +56,13 @@ def val_step(data_loader, model, criterion):
     y_pred = np.concatenate(y_pred)
     y_true = np.concatenate(y_true)
     acc = accuracy_score(y_true, y_pred)
-    precision, recall, fscore, support = precision_recall_fscore_support(y_true, y_pred)
-    recall_mean = scipy.stats.mstats.gmean(recall)
+    precision, recall, fscore, support = precision_recall_fscore_support(y_true,
+                                                                         y_pred,
+                                                                         warn_for=[])
+    if np.any(recall == 0):
+        recall_mean = 0
+    else:
+        recall_mean = scipy.stats.mstats.gmean(recall)
     metrics = {f'val_recall_{i}': v for i, v in enumerate(recall)}
     metrics.update({
         'val_loss': np.mean(val_loss),
@@ -223,7 +228,9 @@ class CILP:
             for k, v in epoch_metrics.items():
                 metrics[k].append(v)
 
+        start = time.time()
         clf = tree.DecisionTreeClassifier().fit(X_tng, y_tng)
+        dtc_time = time.time() - start
 
         metrics['dec_tree_tng_acc'] = [clf.score(X_tng, y_tng)]
         metrics['dec_tree_val_acc'] = [clf.score(X_val, y_val)]
@@ -240,8 +247,9 @@ class CILP:
             print('Trepan Tng fidelity:', mlp_trepan.fidelity(X_tng))
             print('Trepan Val fidelity: ', mlp_trepan.fidelity(X_val))
 
-            print('Decision Tree Tng accuracy: ', clf.score(X_tng, y_tng))
-            print('Decision Tree Val accuracy: ', clf.score(X_val, y_val))
+            print('Dec Tree took s', dtc_time)
+            print('Dec Tree Tng accuracy: ', clf.score(X_tng, y_tng))
+            print('Dec Tree Val accuracy: ', clf.score(X_val, y_val))
 
             dataset_name = osp.basename(self.params['data_dir'])
             mlp_trepan.draw_tree(f'{dataset_name}_trepan.dot')
