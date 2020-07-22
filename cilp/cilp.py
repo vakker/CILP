@@ -256,7 +256,7 @@ class CILP:
             tree.export_graphviz(clf,
                                  out_file=f'{dataset_name}_dtc.dot',
                                  feature_names=self.bcp_features,
-                                 class_names=['True', 'False'],
+                                 class_names=['False', 'True'],
                                  impurity=False)
 
         return metrics
