@@ -26,10 +26,7 @@ def main(args):
                  cached=not args.no_cache,
                  use_gpu=args.use_gpu)
     model.init_data()
-    if args.trepan:
-        model.run_trepan()
-    else:
-        model.run_cv()
+    model.run_cv(args.trepan, args.draw)
 
 
 if __name__ == '__main__':
@@ -39,6 +36,7 @@ if __name__ == '__main__':
     PARSER.add_argument('--no-cache', action='store_true')
     PARSER.add_argument('--use-gpu', action='store_true')
     PARSER.add_argument('--trepan', action='store_true')
+    PARSER.add_argument('--draw', action='store_true')
     PARSER.add_argument('--dedup', action='store_true')
     PARSER.add_argument('--max-epochs', type=int, default=10)
     PARSER.add_argument('--n-splits', type=int, default=5)

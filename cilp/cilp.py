@@ -198,7 +198,7 @@ class CILP:
         self.bcp()
         self.featurise()
 
-    def train(self, tng_idx, val_idx, with_trepan=False):
+    def train(self, tng_idx, val_idx, with_trepan=False, draw=False):
         X_tng = self.X[tng_idx]
         y_tng = self.y[tng_idx]
         X_val = self.X[val_idx]
@@ -228,47 +228,66 @@ class CILP:
             for k, v in epoch_metrics.items():
                 metrics[k].append(v)
 
-        start = time.time()
-        clf = tree.DecisionTreeClassifier().fit(X_tng, y_tng)
-        dtc_time = time.time() - start
-
-        metrics['dec_tree_tng_acc'] = [clf.score(X_tng, y_tng)]
-        metrics['dec_tree_val_acc'] = [clf.score(X_val, y_val)]
-
         if with_trepan:
+            print('Running TREPAN')
+
+            start = time.time()
+            clf = tree.DecisionTreeClassifier().fit(X_tng, y_tng)
+            dtc_time = time.time() - start
+
+            metrics['dec_tree_tng_acc'] = [clf.score(X_tng, y_tng)]
+            metrics['dec_tree_val_acc'] = [clf.score(X_val, y_val)]
+            metrics['dec_tree_tng_fid'] = [
+                accuracy_score(network.predict(X_tng), clf.predict(X_tng))
+            ]
+            metrics['dec_tree_val_fid'] = [
+                accuracy_score(network.predict(X_val), clf.predict(X_val))
+            ]
+
             start = time.time()
             mlp_trepan = Trepan(network, maxsize=20)
             mlp_trepan.fit(X_tng, featnames=self.bcp_features)
-            print('TREPAN took s', time.time() - start)
+            trepan_time = time.time() - start
+            # print('TREPAN took s', trepan_time)
 
-            print('MLP Val acc: ', metrics['val_acc'][-1])
-            print('Trepan Tng accuracy: ', mlp_trepan.accuracy(X_tng, y_tng))
-            print('Trepan Val accuracy: ', mlp_trepan.accuracy(X_val, y_val))
-            print('Trepan Tng fidelity:', mlp_trepan.fidelity(X_tng))
-            print('Trepan Val fidelity: ', mlp_trepan.fidelity(X_val))
+            metrics['trepan_tng_acc'] = [clf.score(X_tng, y_tng)]
+            metrics['trepan_val_acc'] = [clf.score(X_val, y_val)]
+            metrics['trepan_tng_fid'] = [
+                accuracy_score(network.predict(X_tng), mlp_trepan.predict(X_tng))
+            ]
+            metrics['trepan_val_fid'] = [
+                accuracy_score(network.predict(X_val), mlp_trepan.predict(X_val))
+            ]
 
-            print('Dec Tree took s', dtc_time)
-            print('Dec Tree Tng accuracy: ', clf.score(X_tng, y_tng))
-            print('Dec Tree Val accuracy: ', clf.score(X_val, y_val))
+            # print('MLP Val acc: ', metrics['val_acc'][-1])
+            # print('Trepan Tng accuracy: ', mlp_trepan.accuracy(X_tng, y_tng))
+            # print('Trepan Val accuracy: ', mlp_trepan.accuracy(X_val, y_val))
+            # print('Trepan Tng fidelity:', mlp_trepan.fidelity(X_tng))
+            # print('Trepan Val fidelity: ', mlp_trepan.fidelity(X_val))
 
-            dataset_name = osp.basename(self.params['data_dir'])
-            mlp_trepan.draw_tree(f'{dataset_name}_trepan.dot')
-            tree.export_graphviz(clf,
-                                 out_file=f'{dataset_name}_dtc.dot',
-                                 feature_names=self.bcp_features,
-                                 class_names=['False', 'True'],
-                                 impurity=False)
+            # print('Dec Tree took s', dtc_time)
+            # print('Dec Tree Tng accuracy: ', clf.score(X_tng, y_tng))
+            # print('Dec Tree Val accuracy: ', clf.score(X_val, y_val))
+
+            if draw:
+                dataset_name = osp.basename(self.params['data_dir'])
+                mlp_trepan.draw_tree(f'{dataset_name}_trepan.dot')
+                tree.export_graphviz(clf,
+                                     out_file=f'{dataset_name}_dtc.dot',
+                                     feature_names=self.bcp_features,
+                                     class_names=['False', 'True'],
+                                     impurity=False)
 
         return metrics
 
-    def run_cv(self):
+    def run_cv(self, with_trepan=False, draw=False):
         cv_split = StratifiedShuffleSplit(n_splits=self.n_splits, test_size=0.2, random_state=0)
         # cv_split = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle=True)
 
         split_metrics = defaultdict(list)
         for split_idx, (tng_idx, val_idx) in enumerate(
                 tqdm(cv_split.split(self.X, self.y), total=self.n_splits, disable=False)):
-            metrics_ = self.train(tng_idx, val_idx)
+            metrics_ = self.train(tng_idx, val_idx, with_trepan, draw)
             for k, v in metrics_.items():
                 split_metrics[k].append(v)
 
@@ -281,4 +300,6 @@ class CILP:
     def run_trepan(self):
         cv_split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
         (tng_idx, val_idx) = next(cv_split.split(self.X, self.y))
+        tng_idx = range(len(self.X))
+        val_idx = range(len(self.X))
         _ = self.train(tng_idx, val_idx, with_trepan=True)

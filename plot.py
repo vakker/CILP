@@ -6,6 +6,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def print_acc(acc, metric):
+    y = 100 * acc
+    y_mean = np.mean(y, axis=0)
+    y_std = np.std(y, axis=0)
+    y_max = np.argmax(y_mean)
+
+    val_mean = y_mean[y_max]
+    val_std = y_std[y_max]
+    print(f'{metric} {val_mean:.2f} (+/-{val_std:.2f})%')
+
+
 def main(args):
     params = json.load(open(args.param_file))
     metrics = np.load(args.log_file)
@@ -16,23 +27,11 @@ def main(args):
     print(dataset_name)
     to_plot = ['tng_loss', 'val_loss', 'val_acc']
 
-    y = 100 * metrics['val_acc']
-    y_mean = np.mean(y, axis=0)
-    y_std = np.std(y, axis=0)
-    y_max = np.argmax(y_mean)
-
-    val_mean = y_mean[y_max]
-    val_std = y_std[y_max]
-    print(f'Val acc max {val_mean:.2f} (+/-{val_std:.2f})%')
-
-    y = 100 * metrics['dec_tree_val_acc']
-    y_mean = np.mean(y, axis=0)
-    y_std = np.std(y, axis=0)
-    y_max = np.argmax(y_mean)
-
-    val_mean = y_mean[y_max]
-    val_std = y_std[y_max]
-    print(f'Dec Tree Val acc max {val_mean:.2f} (+/-{val_std:.2f})%')
+    print_acc(metrics['val_acc'], 'Val acc max')
+    print_acc(metrics['dec_tree_val_acc'], 'Dec Tree Val acc max')
+    print_acc(metrics['dec_tree_val_fid'], 'Dec Tree Val fid max')
+    print_acc(metrics['trepan_val_acc'], 'TREPAN Val acc max')
+    print_acc(metrics['trepan_val_fid'], 'TREPAN Val fid max')
 
     f, ax = plt.subplots(len(to_plot), 1, sharex=True, figsize=[10, 10])
     for i, m in enumerate(to_plot):

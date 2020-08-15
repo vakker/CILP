@@ -949,3 +949,6 @@ class Trepan(object):
                                    (node, self.tree[node]['predictedclass'][0] > 0.5))
             # Close graph
             out_hndl.write("}\n")
+
+    def score(self, samples, labels):
+        return self.accuracy(samples, labels)
