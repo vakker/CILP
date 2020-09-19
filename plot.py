@@ -28,10 +28,10 @@ def main(args):
     to_plot = ['tng_loss', 'val_loss', 'val_acc']
 
     print_acc(metrics['val_acc'], 'Val acc max')
-    print_acc(metrics['dec_tree_val_acc'], 'Dec Tree Val acc max')
-    print_acc(metrics['dec_tree_val_fid'], 'Dec Tree Val fid max')
-    print_acc(metrics['trepan_val_acc'], 'TREPAN Val acc max')
-    print_acc(metrics['trepan_val_fid'], 'TREPAN Val fid max')
+    # print_acc(metrics['dec_tree_val_acc'], 'Dec Tree Val acc max')
+    # print_acc(metrics['dec_tree_val_fid'], 'Dec Tree Val fid max')
+    # print_acc(metrics['trepan_val_acc'], 'TREPAN Val acc max')
+    # print_acc(metrics['trepan_val_fid'], 'TREPAN Val fid max')
 
     f, ax = plt.subplots(len(to_plot), 1, sharex=True, figsize=[10, 10])
     for i, m in enumerate(to_plot):
