@@ -6,8 +6,8 @@ from cilp import CILP
 def main(args):
     params = {
         'mlp_params': {
-            'hidden_sizes': [100],
-            'activation': 'ReLU'
+            'hidden_sizes': [2],
+            'activation': 'Sigmoid'
         },
         'optim': 'Adam',
         'optim_params': {
